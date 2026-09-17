@@ -9,6 +9,7 @@ class CelestialBody:
         self.pos_I = pos_I
         self.color = color
 
+GEO_alt = 35786000.0
 Earth = CelestialBody(
     name = "Earth",
     mu = 3.986004418e14,  # Earth's gravitational parameter in m^3/s^2
@@ -34,7 +35,7 @@ Moon = CelestialBody(
     pos_I = np.array([
         0,
         lunar_distance_from_earth/np.sqrt(2),
-        lunar_distance_from_earth]/np.sqrt(2)),  # Moon's position in inertial frame
+        lunar_distance_from_earth/np.sqrt(2)]),  # Moon's position in inertial frame
     color = "gray"
 )
 

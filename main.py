@@ -1,14 +1,15 @@
 import numpy as np 
-from scenarios.LEO_circ import scene
+from scenarios.LEO_circ_LUNpt import scene
 import visualization.animation as animation
 from visualization.plotter import plot_trajectory
 from copy import copy
 from sim.bodies import Earth
 import math
 from tqdm import trange
+import datetime
 
 animate = False
-plot = True
+plot = False
 
 dt = 0.1  # Time step in seconds
 dt_between_gnc_updates = 1
@@ -16,7 +17,7 @@ dt_between_frames = 10
 steps = math.ceil(scene.duration / dt)
 
 def main():
-    print(f"Simulating {scene.name} for {scene.duration} seconds...")
+    print(f"Simulating {scene.name} for {datetime.timedelta(seconds=scene.duration)}")
 
     X = scene.X0
     u = {}
