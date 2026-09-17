@@ -1,5 +1,5 @@
 import numpy as np 
-from scenarios.LEO_hohmann import scene
+from scenarios.LEO_circ import scene
 import visualization.animation as animation
 from visualization.plotter import plot_trajectory
 from copy import copy
@@ -8,7 +8,7 @@ import math
 from tqdm import trange
 
 animate = False
-plot = False
+plot = True
 
 dt = 0.1  # Time step in seconds
 dt_between_gnc_updates = 1
