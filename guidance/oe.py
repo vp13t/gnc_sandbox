@@ -118,13 +118,23 @@ def eccentric_anomaly(oe):
     )
     return E % (2 * np.pi)
 
-def time_until_anomaly(oe, mu, target_theta, k_revs=0):
+def time_until_true_anomaly(oe, mu, target_theta, k_revs=0):
     T = oe.period(mu)
     E1 = eccentric_anomaly(oe)
     
     oe2 = copy(oe)
     oe2.theta = target_theta
     E2 = eccentric_anomaly(oe2)
+
+    rev = 2 * np.pi
+    rads = (((E2 - oe.e*np.sin(E2)) - (E1 - oe.e*np.sin(E1))) % rev) + (rev * k_revs)
+    return T * rads / rev
+
+def time_until_eccentric_anomaly(oe, mu, target_E, k_revs=0):
+    T = oe.period(mu)
+    E1 = eccentric_anomaly(oe)
+
+    E2 = target_E
 
     rev = 2 * np.pi
     rads = (((E2 - oe.e*np.sin(E2)) - (E1 - oe.e*np.sin(E1))) % rev) + (rev * k_revs)

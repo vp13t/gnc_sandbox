@@ -1,4 +1,5 @@
 import numpy as np
+from copy import copy
 from sim.state import State
 from sim.bodies import CelestialBody
 import guidance.oe as OE
@@ -10,19 +11,9 @@ from guidance.kepler import tpp_eccentric_anomaly
 from controllers.pointing_lyapunov import pointing_lyapunov
 from enum import Enum
 
-class Apse(Enum):
-    PERIAPSIS = 0
-    APOAPSIS = np.pi
-
-    def __neg__(self):
-        return self.APOAPSIS if self == self.PERIAPSIS else self.PERIAPSIS
-
-
-class SetApseDistManeuver(Maneuver):
-    def __init__(self, r_target_apse: float, target_apse: Apse, body: CelestialBody, spacecraft: Spacecraft):
-        self.r_target = r_target_apse
-        self.targest_apse = target_apse
-        self.burn_apse = -target_apse
+class SetInclinationManeuver(Maneuver):
+    def __init__(self, inclination_target: float, body: CelestialBody, spacecraft: Spacecraft):
+        self.i_target = inclination_target
         self.body = body
         self.spacecraft = spacecraft
         self.thruster = self.spacecraft.thrusters["X_body"]
@@ -35,31 +26,44 @@ class SetApseDistManeuver(Maneuver):
         mu = self.body.mu
         initial_oe = OE.rv_to_oe(state.pos(), state.vel(), mu)
 
-        # Calculate rv for the apse opposite the one we're trying to change.
-        ra_vec, va_vec = OE.projected_rv_at_anomaly(initial_oe, mu, self.burn_apse.value)
-        ra = np.linalg.norm(ra_vec)
-        va = np.linalg.norm(va_vec)
-        self.DeltaV_hat = va_vec / va
+        # Check ascending and descending nodes, use whichever has lower velocity.
+        r_an, v_an = OE.projected_rv_at_anomaly(initial_oe, mu, -initial_oe.omega)
+        r_dn, v_dn = OE.projected_rv_at_anomaly(initial_oe, mu, np.pi-initial_oe.omega)
+        ascending_node = 1
+        if np.linalg.norm(v_an) <= np.linalg.norm(v_dn):
+            rn_vec = r_an
+            vn_vec = v_an
 
-        if (self.targest_apse == Apse.APOAPSIS and self.r_target < ra):
-            raise ValueError(f"Cannot set apoapsis radius {self.r_target:.2f}m below periapsis radius {ra:.2f}m.")
-        elif (self.targest_apse == Apse.PERIAPSIS and self.r_target > ra):
-            raise ValueError(f"Cannot set periapsis radius {self.r_target:.2f}m above apoapsis radius {ra:.2f}m.")
+            oe_an = copy(initial_oe)
+            oe_an.theta = -oe_an.omega
+            burn_pt_E = OE.eccentric_anomaly(oe_an)
+        else:
+            rn_vec = r_dn
+            vn_vec = v_dn
+            ascending_node = -1
 
-        a1 = initial_oe.a
-        a2 = (ra + self.r_target)/2
+            oe_an = copy(initial_oe)
+            oe_an.theta = np.pi-oe_an.omega
+            burn_pt_E = OE.eccentric_anomaly(oe_an)
 
-        self.DeltaV_mag = np.sqrt(mu*(2/ra - 1/a2)) - va
-        if self.DeltaV_mag < 0:
-            self.DeltaV_mag = -self.DeltaV_mag
-            self.DeltaV_hat = -self.DeltaV_hat
+        rn = np.linalg.norm(rn_vec)
+        rhat = rn_vec / rn
+        h = initial_oe.h(self.body.mu)
+        hhat = h / np.linalg.norm(h)
+        that = np.cross(hhat, rhat)
+        vt = np.dot(vn_vec, that)
+        deltai = ascending_node * wrap_pi(self.i_target - initial_oe.i)
+
+        DeltaV = vt * ((np.cos(deltai) - 1) * that + np.sin(deltai) * hhat)
+        self.DeltaV_mag = np.linalg.norm(DeltaV)
         if self.DeltaV_mag < 1e-10:
             self.burn_ended = True
+        else:
+            self.DeltaV_hat = DeltaV / self.DeltaV_mag
 
         accel = self.thruster.force / self.spacecraft.mass
         self.burn_duration = self.DeltaV_mag / accel
         
-        burn_pt_E = self.burn_apse.value
         burn_pt_M = burn_pt_E - initial_oe.e * np.sin(burn_pt_E)
         self.period = initial_oe.period(mu)
         burn_pt_tpp = self.period * burn_pt_M / (2*np.pi)
@@ -98,28 +102,3 @@ class SetApseDistManeuver(Maneuver):
     
     def check_complete(self, state: State, t: float):
         return self.burn_ended
-
-def SetPeriapsisDistManeuver(r: float, body: CelestialBody, spacecraft: Spacecraft):
-    return SetApseDistManeuver(r, Apse.PERIAPSIS, body, spacecraft)
-
-def SetApoapsisDistManeuver(r: float, body: CelestialBody, spacecraft: Spacecraft):
-    return SetApseDistManeuver(r, Apse.APOAPSIS, body, spacecraft)
-
-def HohmannTransferIn(r: float, body: CelestialBody, spacecraft: Spacecraft):
-    return [
-        SetPeriapsisDistManeuver(r, body, spacecraft),
-        SetApoapsisDistManeuver(r, body, spacecraft)
-    ]
-
-def HohmannTransferOut(r: float, body: CelestialBody, spacecraft: Spacecraft):
-    return [
-        SetApoapsisDistManeuver(r, body, spacecraft),
-        SetPeriapsisDistManeuver(r, body, spacecraft)
-    ]
-
-def BiellipticTransfer(rt: float, rf: float, body: CelestialBody, spacecraft: Spacecraft):
-    return [
-        SetApoapsisDistManeuver(rt, body, spacecraft),
-        SetPeriapsisDistManeuver(rf, body, spacecraft),
-        SetApoapsisDistManeuver(rf, body, spacecraft)
-    ]

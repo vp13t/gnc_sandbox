@@ -1,5 +1,5 @@
 import numpy as np 
-from scenarios.LEO_circ_LUNpt import scene
+from scenarios.LEO_plane_rotation import scene
 import visualization.animation as animation
 from visualization.plotter import plot_trajectory
 from copy import copy
@@ -9,7 +9,7 @@ from tqdm import trange
 import datetime
 
 animate = False
-plot = False
+plot = True
 
 dt = 0.1  # Time step in seconds
 dt_between_gnc_updates = 1
