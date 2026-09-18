@@ -10,11 +10,11 @@ from spacecraft.spacecraft import Spacecraft
 from guidance.kepler import tpp_eccentric_anomaly
 from controllers.pointing_lyapunov import pointing_lyapunov
 from enum import Enum
-from guidance.apse_maneuver import Apse
 
-class PlaneRotationManeuver(Maneuver):
-    def __init__(self, rotation_angle: float, body: CelestialBody, spacecraft: Spacecraft):
-        self.rot = rotation_angle
+class SetInclinationManeuver(Maneuver):
+    def __init__(self, inclination_target: float, body: CelestialBody, spacecraft: Spacecraft):
+        self.name = "SetInclinationManeuver"
+        self.i_target = inclination_target
         self.body = body
         self.spacecraft = spacecraft
         self.thruster = self.spacecraft.thrusters["X_body"]
@@ -27,57 +27,64 @@ class PlaneRotationManeuver(Maneuver):
         mu = self.body.mu
         initial_oe = OE.rv_to_oe(state.pos(), state.vel(), mu)
 
-        ra_vec, va_vec = OE.projected_rv_apoapsis(initial_oe, mu)
-        ra = np.linalg.norm(ra_vec)
-        va = np.linalg.norm(va_vec)
-        h_vec = initial_oe.h(self.body.mu)
+        # Check ascending and descending nodes, use whichever has lower velocity.
+        r_an, v_an = OE.projected_rv_at_anomaly(initial_oe, mu, -initial_oe.omega)
+        r_dn, v_dn = OE.projected_rv_at_anomaly(initial_oe, mu, np.pi-initial_oe.omega)
+        ascending_node = 1
+        if np.linalg.norm(v_an) <= np.linalg.norm(v_dn):
+            rn_vec = r_an
+            vn_vec = v_an
 
-        n = np.cross(ra_vec, va_vec)
-        t = np.cross(h_vec, ra_vec)
-        DCM_ItoApoRTN = np.column_stack((
-            ra_vec / np.linalg.norm(ra),
-            t / np.linalg.norm(t),
-            n / np.linalg.norm(n)
-        ))
-        DCM_R = np.array([
-            [1, 0, 0],
-            [0, np.cos(self.rot), np.sin(self.rot)],
-            [0, -np.sin(self.rot), np.cos(self.rot)]
-        ])
-        vrot = DCM_ItoApoRTN @ DCM_R @ DCM_ItoApoRTN.T @ va_vec
+            oe_an = copy(initial_oe)
+            oe_an.theta = -oe_an.omega
+            burn_pt_E = OE.eccentric_anomaly(oe_an)
+        else:
+            rn_vec = r_dn
+            vn_vec = v_dn
+            ascending_node = -1
 
-        deltaV = vrot - va_vec
-        self.DeltaV_mag = np.linalg.norm(deltaV)
+            oe_an = copy(initial_oe)
+            oe_an.theta = np.pi-oe_an.omega
+            burn_pt_E = OE.eccentric_anomaly(oe_an)
+
+        rn = np.linalg.norm(rn_vec)
+        rhat = rn_vec / rn
+        h = initial_oe.h(self.body.mu)
+        hhat = h / np.linalg.norm(h)
+        that = np.cross(hhat, rhat)
+        vt = np.dot(vn_vec, that)
+        deltai = ascending_node * wrap_pi(self.i_target - initial_oe.i)
+
+        DeltaV = vt * ((np.cos(deltai) - 1) * that + np.sin(deltai) * hhat)
+        self.DeltaV_mag = np.linalg.norm(DeltaV)
         if self.DeltaV_mag < 1e-10:
             self.burn_ended = True
         else:
-            self.DeltaV_hat = deltaV / self.DeltaV_mag
+            self.DeltaV_hat = DeltaV / self.DeltaV_mag
 
         accel = self.thruster.force / self.spacecraft.mass
         self.burn_duration = self.DeltaV_mag / accel
         
-        burn_pt_E = Apse.APOAPSIS.value
         burn_pt_M = burn_pt_E - initial_oe.e * np.sin(burn_pt_E)
-        period = initial_oe.period(mu)
-        burn_pt_tpp = period * burn_pt_M / (2*np.pi)
+        self.period = initial_oe.period(mu)
+        burn_pt_tpp = self.period * burn_pt_M / (2*np.pi)
+    
         start_tpp = burn_pt_tpp - self.burn_duration/2
-
-        self.start_E = tpp_eccentric_anomaly(start_tpp, initial_oe.a, initial_oe.e, mu)
+        start_E = tpp_eccentric_anomaly(start_tpp, initial_oe.a, initial_oe.e, mu)
+        self.burn_time = OE.time_until_eccentric_anomaly(initial_oe, self.body.mu, start_E) + t
     
     def act(self, state: State, t: float):
         L, V = pointing_lyapunov(state, self.DeltaV_hat, self.spacecraft)
         torque = control_torque(state, L, self.spacecraft)
-        curr_oe = OE.rv_to_oe(state.pos(), state.vel(), self.body.mu)
-        # Positive eccentric anomaly near apoapsis
-        E = OE.eccentric_anomaly(curr_oe)
-        phase_from_burn_start = wrap_pi(E - self.start_E)
+
+        time_until_burn_start = ((self.burn_time - t + self.period/2) % self.period) - self.period/2
 
         # Stabilize pointing before starting burn
-        if np.sum(V) < 1e-6 and phase_from_burn_start < 0:
+        if np.sum(V) < 1e-6 and time_until_burn_start > 0:
             self.burn_ready = True
         
         thrust_force = Force()
-        if self.burn_ready and phase_from_burn_start >= 0 and not self.burn_end_time:
+        if self.burn_ready and time_until_burn_start <= 0 and not self.burn_end_time:
             if np.sum(V) > 1e-6:
                 # Abort readied burn
                 self.burn_ready = False

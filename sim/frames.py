@@ -1,9 +1,9 @@
 import numpy as np
 import quaternion
 
-IX = np.array([1, 0, 0])
-IY = np.array([0, 1, 0])
-IZ = np.array([0, 0, 1])
+IX = np.array([1.0, 0.0, 0.0])
+IY = np.array([0.0, 1.0, 0.0])
+IZ = np.array([0.0, 0.0, 1.0])
 
 def InertialFrame():
     return np.eye(3)

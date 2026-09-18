@@ -9,7 +9,7 @@ import sim.forces as forces
 
 from guidance.scheduling import GuidanceSchedule
 from guidance.maneuver import IdlePeriod
-from guidance.inclination_maneuver import SetInclinationManeuver
+from guidance.orbits.inclination_maneuver import SetInclinationManeuver
 
 class Scenario(BaseScenario):
     def __init__(self):

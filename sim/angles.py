@@ -34,3 +34,14 @@ def quat2vec(quat):
 
 def angle_between_quats(q1, q2):
     return 2*np.arccos(abs(quaternion.as_float_array(q1) @ quaternion.as_float_array(q2)))
+
+def rotate_vec_about_axis(vec, axis, angle):
+    cross = np.cross(axis, vec)
+    dot = np.dot(axis, vec)
+    return vec*np.cos(angle) + cross*np.sin(angle) + axis*dot*(1-np.cos(angle))
+
+def rotate_vec_towards_vec(vec_moving, vec_target, angle):
+    target_prime = np.cross(np.cross(vec_moving, vec_target), vec_moving)
+    target_prime = target_prime / np.linalg.norm(target_prime)
+    vec_new = np.cos(angle)*vec_moving + np.sin(angle)*target_prime
+    return vec_new

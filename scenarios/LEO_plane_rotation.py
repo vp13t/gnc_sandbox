@@ -9,7 +9,7 @@ import sim.forces as forces
 
 from guidance.scheduling import GuidanceSchedule
 from guidance.maneuver import IdlePeriod
-from guidance.plane_rotation_maneuver import PlaneRotationManeuver
+from guidance.orbits.plane_rotation_maneuver import PlaneRotationManeuver
 
 class Scenario(BaseScenario):
     def __init__(self):

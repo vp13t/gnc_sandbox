@@ -8,7 +8,7 @@ from visualization.camera_mode import CameraMode
 import sim.forces as forces
 
 from guidance.scheduling import GuidanceSchedule
-from guidance.apse_maneuver import SetApoapsisDistManeuver
+from guidance.orbits.apse_maneuver import SetApoapsisDistManeuver
 
 class Scenario(BaseScenario):
     def __init__(self):

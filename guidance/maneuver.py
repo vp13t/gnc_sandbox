@@ -22,6 +22,7 @@ class Maneuver(ABC):
 
 class IdlePeriod(Maneuver):
     def __init__(self, duration: float):
+        self.name = "IdlePeriod"
         self.duration = duration
     
     def plan(self, state: State, t: float):

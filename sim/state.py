@@ -1,7 +1,7 @@
 import numpy as np
 import quaternion
 from scipy.integrate import solve_ivp
-from sim.forces import Force
+from sim.forces import Force, normal_force
 
 def dynamics(t, x, mass, force: Force):
     xdot, ydot, zdot = x[3:6]
@@ -79,6 +79,11 @@ class State:
 
     def update(self, dt, mass, force=Force()):
         ic = self.vec()
+        if force.normal_force_active:
+            V = np.linalg.norm(ic[3:6])
+            if V >= 10.0:
+                print(f"\nCrashed at {V:.2f} m/s!")
+            ic[3:6] = np.zeros(3)
         sol = solve_ivp(
             fun=dynamics, 
             t_span=(0,dt),

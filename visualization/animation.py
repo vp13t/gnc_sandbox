@@ -4,7 +4,7 @@ from scipy.spatial.transform import Rotation
 from weakref import WeakKeyDictionary
 
 from sim.bodies import Bodies, CelestialBody
-from sim.frames import IX, IY, IZ
+from sim.frames import IX, IY, IZ, QuaternionFrame
 from sim.forces import Force
 from sim.state import State
 from visualization.camera_mode import CameraMode
@@ -148,8 +148,14 @@ def save_frame(plotter, state: State, cam_target: CelestialBody | CameraMode, u=
         match cam_target:
             case CameraMode.VELOCITY_FACING:
                 tgt_direction = -state.vel()
+                if np.linalg.norm(tgt_direction) == 0:
+                    tgt_direction = -IX
             case CameraMode.VELOCITY_FOLLOWING:
                 tgt_direction = state.vel()
+                if np.linalg.norm(tgt_direction) == 0:
+                    tgt_direction = IX
+            case CameraMode.NORMAL_FACING:
+                tgt_direction = QuaternionFrame(state) @ IY
 
     distance = np.linalg.norm(tgt_direction)
     if distance == 0:

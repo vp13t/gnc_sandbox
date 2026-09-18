@@ -1,5 +1,5 @@
 import numpy as np 
-from scenarios.LEO_plane_rotation import scene
+from scenarios.LAUNCH_karman import scene
 import visualization.animation as animation
 from visualization.plotter import plot_trajectory
 from copy import copy
@@ -8,7 +8,7 @@ import math
 from tqdm import trange
 import datetime
 
-animate = False
+animate = True
 plot = True
 
 dt = 0.1  # Time step in seconds
@@ -45,9 +45,8 @@ def main():
     finally:
         if animate:
             animation.close(animation_plotter)
-
-    if plot:
-        plot_trajectory(Xhist, f"plots/{scene.name}.png", show=True)
+        if plot:
+            plot_trajectory(Xhist, f"plots/{scene.name}.png", show=True)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,10 @@ class Force:
     w1dot: float = 0.0
     w2dot: float = 0.0
     w3dot: float = 0.0
+    normal_force_active = False
+
+    def __repr__(self):
+        return f"xddot={self.xddot} yddot={self.yddot} zddot={self.zddot} w1dot={self.w1dot} w2dot={self.w2dot} w3dot={self.w3dot}"
 
     def __add__(self, other):
         result = Force()
@@ -19,6 +23,18 @@ class Force:
         result.w1dot = self.w1dot + other.w1dot
         result.w2dot = self.w2dot + other.w2dot
         result.w3dot = self.w3dot + other.w3dot
+        result.normal_force_active = self.normal_force_active or other.normal_force_active
+        return result
+    
+    def __sub__(self, other):
+        result = Force()
+        result.xddot = self.xddot - other.xddot
+        result.yddot = self.yddot - other.yddot
+        result.zddot = self.zddot - other.zddot
+        result.w1dot = self.w1dot - other.w1dot
+        result.w2dot = self.w2dot - other.w2dot
+        result.w3dot = self.w3dot - other.w3dot
+        result.normal_force_active = self.normal_force_active or other.normal_force_active
         return result
     
     def __radd__(self, other):
@@ -45,6 +61,13 @@ def gravity(state: "State", body: CelestialBody, spacecraft: Spacecraft):
     force.xddot, force.yddot, force.zddot = accel
     force.w1dot, force.w2dot, force.w3dot = wdot_I
     return force
+
+def normal_force(state: "State", body: CelestialBody, spacecraft: Spacecraft):
+    if np.linalg.norm(state.pos() - body.pos_I) <= body.radius:
+        f = Force() - gravity(state, body, spacecraft)
+        f.normal_force_active = True
+        return f
+    return Force()
 
 def thrust(state: "State", spacecraft: Spacecraft, thruster: Thruster):
     R = DCM(QuaternionFrame(state), InertialFrame())
@@ -76,3 +99,10 @@ def control_torque(state, L, spacecraft: Spacecraft):
     force = Force()
     force.w1dot, force.w2dot, force.w3dot = wdot
     return force
+
+def perturbations(Q):
+    rng = np.random.default_rng()
+    sample = rng.multivariate_normal(np.zeros(6), Q)
+    f = Force()
+    f.xddot, f.yddot, f.zddot, f.w1dot, f.w2dot, f.w3dot = sample
+    return f

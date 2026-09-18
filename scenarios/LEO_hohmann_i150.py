@@ -9,7 +9,7 @@ import sim.forces as forces
 
 from guidance.scheduling import GuidanceSchedule
 from guidance.maneuver import IdlePeriod
-from guidance.apse_maneuver import HohmannTransferOut
+from guidance.orbits.apse_maneuver import HohmannTransferOut
 
 class Scenario(BaseScenario):
     def __init__(self):
