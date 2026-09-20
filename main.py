@@ -1,5 +1,5 @@
 import numpy as np 
-from scenarios.LAUNCH_karman import scene
+from scenarios.descent.LAND_ballistic import scene
 import visualization.animation as animation
 from visualization.plotter import plot_trajectory
 from copy import copy
@@ -8,10 +8,10 @@ import math
 from tqdm import trange
 import datetime
 
-animate = True
+animate = False
 plot = True
 
-dt = 0.1  # Time step in seconds
+dt = 1.0  # Time step in seconds
 dt_between_gnc_updates = 1
 dt_between_frames = 10
 steps = math.ceil(scene.duration / dt)

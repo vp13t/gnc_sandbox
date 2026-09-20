@@ -1,0 +1,86 @@
+import numpy as np
+import guidance.oe as oe
+import sim.state as state
+from scenarios.base_scenario import BaseScenario
+from sim.bodies import Earth, Sun, Moon
+from spacecraft.sounding_rocket import SoundingRocket
+from visualization.camera_mode import CameraMode
+import sim.forces as forces
+
+from guidance.scheduling import GuidanceSchedule
+from guidance.maneuver import IdlePeriod
+from guidance.descent.in_plane_descent_maneuver import InPlaneDescentManeuver
+from guidance.descent.land_maneuver import LandManeuver
+
+class Scenario(BaseScenario):
+    def __init__(self):
+        self.name = "LAND_desc"
+
+        alt = 400000.0  # Altitude above Earth's surface in meters
+        r_p = Earth.radius + alt  # Perigee distance from Earth's center
+        OE = oe.OrbitalElements(
+            a=r_p,         # Semi-major axis
+            e=0, # Eccentricity
+            i=5*np.pi/6,      # Inclination
+            Omega=3*np.pi/4,  # Right ascension of ascending node
+            omega=-np.pi/4,  # Argument of periapsis
+            theta=-np.pi/2   # True anomaly
+        )
+        r0, v0 = oe.oe_to_rv(OE, mu=Earth.mu)
+
+        h = np.cross(r0, v0)
+        hhat = h / np.linalg.norm(h)
+
+        self.period = OE.period(mu=Earth.mu)  # Orbital period in seconds
+        spin = 2 * np.pi / self.period  # Angular velocity in rad/s
+
+        q0 = [0, 0, 0, 1]  # Initial quaternion (no rotation)
+        w0 = spin * hhat    # Initial angular velocity (1 rotation per orbit)
+
+        self.X0 = state.State(
+            r=r0,
+            v=v0,
+            q=q0,
+            w=w0
+        )
+        self.last_X = self.X0
+
+        self.cam_target = CameraMode.VELOCITY_FOLLOWING
+        self.spacecraft = SoundingRocket()
+
+        t0 = 0.0
+        theta_target = np.pi/2
+        glide_slope_angle = np.pi/4
+        landing_duration = self.period/2
+
+        r_theta_tgt_curr_orbit, _ = oe.projected_rv_at_anomaly(OE, Earth.mu, theta_target)
+        rhat_theta_tgt = r_theta_tgt_curr_orbit / np.linalg.norm(r_theta_tgt_curr_orbit)
+
+        self.guidance_schedule = GuidanceSchedule(
+            [
+                InPlaneDescentManeuver(theta_target, Earth, self.spacecraft, fixed_initial_oe=OE),
+                IdlePeriod(60),
+                # LandManeuver(rhat_theta_tgt, glide_slope_angle, Earth, self.spacecraft, 3600)
+            ],
+            self.X0,
+            t0
+        )
+        self.control_force = forces.Force()
+
+        self.duration = self.period * 2
+
+    def update_gnc(self, X, t) -> dict[str, forces.Force]:
+        control_inputs = self.guidance_schedule.update(X, t)
+        self.control_force = sum(control_inputs.values(), start=forces.Force())
+        self.last_X = X
+        return control_inputs
+
+    def forces(self, X) -> forces.Force:
+        return (
+            forces.gravity(X, Earth, self.spacecraft)
+            + forces.normal_force(X, Earth, self.spacecraft)
+            + forces.torque_free_rotation(X, self.spacecraft)
+            + self.control_force
+        )
+
+scene = Scenario()

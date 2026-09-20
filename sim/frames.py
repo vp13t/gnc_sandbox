@@ -1,5 +1,6 @@
 import numpy as np
 import quaternion
+from sim.bodies import CelestialBody
 
 IX = np.array([1.0, 0.0, 0.0])
 IY = np.array([0.0, 1.0, 0.0])
@@ -8,8 +9,8 @@ IZ = np.array([0.0, 0.0, 1.0])
 def InertialFrame():
     return np.eye(3)
 
-def RTNFrame(state: "State"):
-    r = state.pos()
+def RTNFrame(state: "State", body: CelestialBody):
+    r = state.pos() - body.pos_I
     v = state.vel()
 
     n = np.cross(r, v)
