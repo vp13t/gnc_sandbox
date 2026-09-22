@@ -59,7 +59,7 @@ def update_thruster_plume(plotter, state: State, u=None):
 
     firing = False
     if u is not None and isinstance((thrust := u.get("X_body", None)), Force):
-        firing = np.any([thrust.xddot, thrust.yddot, thrust.zddot])
+        firing = np.any(thrust.force_I)
     for actor in plume.actors:
         actor.visibility = bool(firing)
     if not firing:

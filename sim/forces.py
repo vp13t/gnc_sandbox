@@ -1,108 +1,112 @@
+from dataclasses import dataclass
+
 import numpy as np
 from sim.bodies import CelestialBody
-from sim.frames import DCM, InertialFrame, QuaternionFrame
+from sim.frames import QuaternionFrame
 from spacecraft.spacecraft import Spacecraft, Thruster
 
-class Force:
-    xddot: float = 0.0
-    yddot: float = 0.0
-    zddot: float = 0.0
-    w1dot: float = 0.0
-    w2dot: float = 0.0
-    w3dot: float = 0.0
-    normal_force_active = False
 
-    def __repr__(self):
-        return f"xddot={self.xddot} yddot={self.yddot} zddot={self.zddot} w1dot={self.w1dot} w2dot={self.w2dot} w3dot={self.w3dot}"
+def _cross3(a, b):
+    # These force models always use single three-vectors. Avoid numpy.cross's
+    # batch/axis dispatch overhead in the four evaluations per RK4 step.
+    return np.array([a[1]*b[2] - a[2]*b[1],
+                     a[2]*b[0] - a[0]*b[2],
+                     a[0]*b[1] - a[1]*b[0]])
+
+@dataclass(slots=True)
+class Force:
+    """External load in inertial coordinates: force (N) and torque (N m).
+
+    Torque is about the spacecraft's center of mass. Acceleration and
+    gyroscopic dynamics are computed by State.update, not by force models.
+    """
+    fx: float = 0.0
+    fy: float = 0.0
+    fz: float = 0.0
+    tx: float = 0.0
+    ty: float = 0.0
+    tz: float = 0.0
+    normal_force_active: bool = False
+    contact_bodies: tuple = ()
+
+    @classmethod
+    def from_vectors(cls, force_I=(0., 0., 0.), torque_I=(0., 0., 0.)):
+        if len(force_I) != 3 or len(torque_I) != 3:
+            raise ValueError("Force and torque must each have three components")
+        return cls(*force_I, *torque_I)
+
+    @property
+    def force_I(self):
+        return np.array([self.fx, self.fy, self.fz])
+
+    @property
+    def torque_I(self):
+        return np.array([self.tx, self.ty, self.tz])
 
     def __add__(self, other):
-        result = Force()
-        result.xddot = self.xddot + other.xddot
-        result.yddot = self.yddot + other.yddot
-        result.zddot = self.zddot + other.zddot
-        result.w1dot = self.w1dot + other.w1dot
-        result.w2dot = self.w2dot + other.w2dot
-        result.w3dot = self.w3dot + other.w3dot
-        result.normal_force_active = self.normal_force_active or other.normal_force_active
-        return result
-    
+        if not isinstance(other, Force):
+            return NotImplemented
+        return Force(self.fx + other.fx, self.fy + other.fy, self.fz + other.fz,
+                     self.tx + other.tx, self.ty + other.ty, self.tz + other.tz,
+                     self.normal_force_active or other.normal_force_active,
+                     self.contact_bodies + other.contact_bodies)
+
     def __sub__(self, other):
-        result = Force()
-        result.xddot = self.xddot - other.xddot
-        result.yddot = self.yddot - other.yddot
-        result.zddot = self.zddot - other.zddot
-        result.w1dot = self.w1dot - other.w1dot
-        result.w2dot = self.w2dot - other.w2dot
-        result.w3dot = self.w3dot - other.w3dot
-        result.normal_force_active = self.normal_force_active or other.normal_force_active
-        return result
-    
+        if not isinstance(other, Force):
+            return NotImplemented
+        return Force(self.fx - other.fx, self.fy - other.fy, self.fz - other.fz,
+                     self.tx - other.tx, self.ty - other.ty, self.tz - other.tz,
+                     self.normal_force_active or other.normal_force_active,
+                     self.contact_bodies + other.contact_bodies)
+
     def __radd__(self, other):
         if other == 0:
             return self
         return self.__add__(other)
 
 def gravity(state: "State", body: CelestialBody, spacecraft: Spacecraft):
-    # Gravity Acceleration
+    # Gravitational force at the center of mass
     r_vec = state.pos() - body.pos_I
     r_mag = np.linalg.norm(r_vec)
-    r_hat = r_vec / r_mag
     if r_mag == 0:
         raise ValueError("Distance between bodies cannot be zero.")
-    accel = -body.mu * r_hat / r_mag**2
+    r_hat = r_vec / r_mag
+    force_I = -spacecraft.mass * body.mu * r_hat / r_mag**2
 
     # Gravity Gradient Torque
-    R = DCM(InertialFrame(), QuaternionFrame(state))
+    R = QuaternionFrame(state).T
     r_b = R @ r_hat
-    torque_b = np.cross(3 * body.mu * r_b / r_mag**3, spacecraft.inertia @ r_b)
-    wdot_I = R.T @ np.linalg.solve(spacecraft.inertia, torque_b)
-
-    force = Force()
-    force.xddot, force.yddot, force.zddot = accel
-    force.w1dot, force.w2dot, force.w3dot = wdot_I
-    return force
+    torque_b = _cross3(3 * body.mu * r_b / r_mag**3, spacecraft.inertia @ r_b)
+    return Force.from_vectors(force_I, R.T @ torque_b)
 
 def normal_force(state: "State", body: CelestialBody, spacecraft: Spacecraft):
-    if np.linalg.norm(state.pos() - body.pos_I) <= body.radius:
-        f = Force() - gravity(state, body, spacecraft)
-        f.normal_force_active = True
-        return f
-    return Force()
+    """Register a spherical contact surface, including while above it.
+
+    State.update resolves impacts and supplies the outward reaction to the
+    *total* inward acceleration. Canceling gravity here would also cancel it
+    during liftoff and would not account for other applied forces.
+    """
+    f = Force()
+    f.contact_bodies = (body,)
+    f.normal_force_active = np.linalg.norm(state.pos() - body.pos_I) <= body.radius
+    return f
 
 def thrust(state: "State", spacecraft: Spacecraft, thruster: Thruster):
-    R = DCM(QuaternionFrame(state), InertialFrame())
-    thrust_dir_I = R @ thruster.direction
-    accel = thruster.force * thrust_dir_I / spacecraft.mass
+    """Sample the thruster's inertial force in newtons."""
+    thrust_dir_I = QuaternionFrame(state) @ thruster.direction
+    return Force.from_vectors(force_I=thruster.force * thrust_dir_I)
 
-    force = Force()
-    force.xddot, force.yddot, force.zddot = accel
-    return force
-
-def torque_free_rotation(state, spacecraft: Spacecraft):
-    w = state.omega()
-    R = DCM(QuaternionFrame(state), InertialFrame())
-    I = R @ spacecraft.inertia @ R.T
-
-    wdot = np.linalg.solve(I, -np.cross(w, I @ w))
-
-    force = Force()
-    force.w1dot, force.w2dot, force.w3dot = wdot
-    return force
 
 def control_torque(state, L, spacecraft: Spacecraft):
-    w = state.omega()
-    R = DCM(QuaternionFrame(state), InertialFrame())
-    I = R @ spacecraft.inertia @ R.T
+    """Package an inertial controller torque (N m), without dividing by inertia."""
+    return Force.from_vectors(torque_I=L)
 
-    wdot = np.linalg.solve(I, L)
 
-    force = Force()
-    force.w1dot, force.w2dot, force.w3dot = wdot
-    return force
+def perturbations(Q, rng=None):
+    """Sample [Fx, Fy, Fz, Tx, Ty, Tz] with force/torque covariance Q.
 
-def perturbations(Q):
-    rng = np.random.default_rng()
+    Sample once per hold interval, never inside a state-force callback.
+    """
+    rng = np.random.default_rng() if rng is None else rng
     sample = rng.multivariate_normal(np.zeros(6), Q)
-    f = Force()
-    f.xddot, f.yddot, f.zddot, f.w1dot, f.w2dot, f.w3dot = sample
-    return f
+    return Force.from_vectors(sample[:3], sample[3:])

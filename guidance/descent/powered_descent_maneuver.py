@@ -9,7 +9,7 @@ from controllers.pointing_tracking import pointing_tracking
 from guidance.descent.descent_optimizer import DescentOptimizer
 from guidance.descent.translational_prediction import step_translational
 from guidance.maneuver import Maneuver
-from sim.forces import Force, control_torque, gravity, thrust, torque_free_rotation
+from sim.forces import Force, control_torque, gravity, thrust
 
 
 class DescentFailure(RuntimeError):
@@ -91,7 +91,7 @@ class PoweredDescentManeuver(Maneuver):
 
     def _aligned(self, state, direction, angular_rate=None):
         force = thrust(state, self.spacecraft, self.thruster)
-        actual = np.array([force.xddot, force.yddot, force.zddot])
+        actual = force.force_I
         actual /= np.linalg.norm(actual)
         reference_rate = np.zeros(3) if angular_rate is None else angular_rate
         return (actual @ direction >= np.cos(self.pointing_tolerance)
@@ -101,15 +101,16 @@ class PoweredDescentManeuver(Maneuver):
         """Predict the same attitude controller, without firing the main engine."""
         predicted = deepcopy(state)
         step = min(self.control_dt, 1.0)
+        def environment(stage):
+            return gravity(stage, self.body, self.spacecraft)
         for i in range(math.ceil(self.max_slew_time/step) + 1):
             if self._aligned(predicted, direction):
                 return i*step
             torque = pointing_tracking(predicted, direction, self.spacecraft,
                                        frequency=self.attitude_frequency)
-            forces = (gravity(predicted, self.body, self.spacecraft)
-                      + torque_free_rotation(predicted, self.spacecraft)
-                      + control_torque(predicted, torque, self.spacecraft))
-            predicted.update(step, self.spacecraft.mass, forces)
+            forces = control_torque(predicted, torque, self.spacecraft)
+            predicted.update(step, self.spacecraft, forces,
+                             state_forces=environment)
         return None
 
     def optimize(self, state, t):
@@ -197,7 +198,7 @@ class PoweredDescentManeuver(Maneuver):
         acceleration = self.thruster.force/self.spacecraft.mass
         self.pending_dv += acceleration * desired_u * self.control_dt
         pulse = thrust(state, self.spacecraft, self.thruster)
-        actual_dv = np.array([pulse.xddot, pulse.yddot, pulse.zddot])*self.control_dt
+        actual_dv = pulse.force_I*(self.control_dt/self.spacecraft.mass)
         beneficial = self.pending_dv @ actual_dv > 0.5*(actual_dv @ actual_dv)
         if allow_fire and beneficial and self._aligned(state, direction, angular_rate):
             self.pending_dv -= actual_dv

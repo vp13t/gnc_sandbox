@@ -88,8 +88,6 @@ class Scenario(BaseScenario):
     def forces(self, X) -> forces.Force:
         return (
             forces.gravity(X, Earth, self.spacecraft)
-            + forces.torque_free_rotation(X, self.spacecraft)
-            + self.control_force
         )
 
 scene = Scenario()

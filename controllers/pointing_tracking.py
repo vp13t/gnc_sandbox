@@ -6,7 +6,7 @@ import quaternion
 
 def pointing_tracking(state, direction, spacecraft, angular_rate=None,
                       angular_acceleration=None, frequency=0.2):
-    """Return inertial torque for a critically damped axis-tracking controller.
+    """Return inertial torque (N m) for a critically damped tracking controller.
 
     Frequency is in rad/s. As elsewhere in this simulator, control torque has
     no modeled actuator limit. Roll about the thrust axis is damped, not targeted.

@@ -7,7 +7,7 @@ import numpy as np
 from guidance.scheduling import GuidanceSchedule
 from scenarios.descent.LAND_powered import Scenario
 from sim.bodies import Earth
-from sim.forces import Force, gravity, normal_force, torque_free_rotation
+from sim.forces import Force
 from sim.state import State
 
 
@@ -31,25 +31,23 @@ class LandingExecutionTests(unittest.TestCase):
         schedule = GuidanceSchedule([landing], state, 0, log=False,
                                     control_dt=control_dt)
         completed = False
-        contact_speed = None
+        contact_seen = False
         command = Force()
         for k in range(int(400 / scene.dt)):
             if k % scene.dt_between_gnc_updates == 0:
                 command = sum(schedule.update(state, k*scene.dt).values(), start=Force())
                 if schedule.curr_maneuver is None:
                     completed = True
-            contact = normal_force(state, Earth, scene.spacecraft)
-            if contact.normal_force_active and contact_speed is None:
-                contact_speed = np.linalg.norm(state.vel())
-            force = (gravity(state, Earth, scene.spacecraft) + contact
-                     + torque_free_rotation(state, scene.spacecraft) + command)
-            state.update(scene.dt, scene.spacecraft.mass, force)
-            if completed and contact_speed is not None:
+            scene.control_force = command
+            scene.step(state)  # Impact guard checks the velocity at contact.
+            if np.linalg.norm(state.pos()-Earth.pos_I) <= Earth.radius + 1e-7:
+                contact_seen = True
+            if completed and contact_seen:
                 break
 
         self.assertTrue(completed, landing.last_failure)
-        self.assertIsNotNone(contact_speed)
-        self.assertLess(contact_speed, 10.0)
+        self.assertTrue(contact_seen)
+        self.assertLess(np.linalg.norm(state.vel()), 10.0)
         self.assertLessEqual(np.max(np.linalg.norm(landing.active_plan.U, axis=0)),
                              0.9 + 1e-6)
         self.assertTrue(landing.optimizer.validate(landing.active_plan))

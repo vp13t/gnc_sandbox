@@ -42,8 +42,12 @@ optimization timestep. Control integration accounts for partial plan intervals.
 `pending_dv` is requested minus commanded velocity change, in m/s. A pulse is
 selected only when it reduces that vector error and the spacecraft is aligned.
 The subtraction uses the actual body thrust direction and control hold duration.
-It is booked for the upcoming interval, matching `State.update`'s held-force
-convention. Do not reuse this accounting unchanged with an actuator that can
+It is booked for the upcoming interval, matching `State.update`'s held-control
+convention. Environmental forces are reevaluated at RK4 stages; the thrust
+vector (N) and control torque (N m) remain held. Pulse delta-v uses `F*dt/m`;
+the integrator applies the current inertia and Euler's gyroscopic term to
+compute angular acceleration. Attitude slew prediction uses the same split
+as `scene.step(X)`. Do not reuse this accounting unchanged with an actuator that can
 reject commands or an integrator that changes thrust direction within the hold.
 Attitude points along planned thrust, not a small pulse residual.
 

@@ -73,8 +73,6 @@ class Scenario(BaseScenario):
         return (
             forces.gravity(X, Earth, self.spacecraft)
             + forces.gravity(X, Moon, self.spacecraft)
-            + forces.torque_free_rotation(X, self.spacecraft)
-            + self.control_force
         )
 
 scene = Scenario()

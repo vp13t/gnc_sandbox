@@ -4,7 +4,7 @@ import guidance.oe as oe
 import sim.state as state
 from scenarios.base_scenario import BaseScenario
 from sim.angles import vec2quat
-from sim.frames import IZ
+from sim.frames import IZ, QuaternionFrame
 from sim.bodies import Earth, Sun, Moon
 from spacecraft.sounding_rocket import SoundingRocket
 from visualization.camera_mode import CameraMode
@@ -36,7 +36,15 @@ class Scenario(BaseScenario):
 
         rnoise = 1e1
         wnoise = 1e-12
-        self.pertubations_Q = np.diag([rnoise, rnoise, rnoise, wnoise, wnoise, wnoise])
+        self.rng = np.random.default_rng()
+        # Inertial covariance of [force (N), torque (N m)]. Convert the
+        # previous acceleration-noise tuning at the launch attitude; this
+        # force/torque distribution then remains fixed in inertial axes.
+        rotation = QuaternionFrame(self.X0)
+        inertia_I = rotation @ self.spacecraft.inertia @ rotation.T
+        self.perturbations_Q = np.zeros((6, 6))
+        self.perturbations_Q[:3, :3] = rnoise * self.spacecraft.mass**2 * np.eye(3)
+        self.perturbations_Q[3:, 3:] = wnoise * inertia_I @ inertia_I.T
 
         t0 = 0.0
         karman_alt = 100000
@@ -58,13 +66,13 @@ class Scenario(BaseScenario):
         self.last_X = X
         return control_inputs
 
+    def held_forces(self):
+        return super().held_forces() + forces.perturbations(self.perturbations_Q, self.rng)
+
     def forces(self, X) -> forces.Force:
         return (
             forces.gravity(X, Earth, self.spacecraft)
             + forces.normal_force(X, Earth, self.spacecraft)
-            + forces.perturbations(self.pertubations_Q)
-            + forces.torque_free_rotation(X, self.spacecraft)
-            + self.control_force
         )
 
 scene = Scenario()

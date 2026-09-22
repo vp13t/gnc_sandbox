@@ -8,6 +8,9 @@ from spacecraft.spacecraft import Spacecraft
 
 def pointing_lyapunov(state, target: CelestialBody | np.ndarray, spacecraft: Spacecraft, debug=False):
     """
+    Return inertial control torque in N m and the Lyapunov value.
+    Kr has units N m; Kw has units N m s (angles are in radians).
+
     V = (1/2 w^T I w) + (Kr 1/2 tr(I_3 - err_rot))
     Vdot = w^T L + Kr er^T w
     """    

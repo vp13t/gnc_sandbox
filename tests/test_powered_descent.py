@@ -75,7 +75,7 @@ class ExecutionTests(unittest.TestCase):
             u = np.array([0.3, 0, 0])
             requested += accel*u*self.m.control_dt
             force = self.m._pulse(self.state, np.array([1, 0, 0]), u, True)
-            delivered += np.array([force.xddot, force.yddot, force.zddot])*self.m.control_dt
+            delivered += force.force_I*(self.m.control_dt/self.craft.mass)
         np.testing.assert_allclose(self.m.pending_dv, requested-delivered, atol=1e-12)
         self.assertLessEqual(np.linalg.norm(self.m.pending_dv), 0.5*accel*self.m.control_dt+1e-12)
 
@@ -90,7 +90,7 @@ class ExecutionTests(unittest.TestCase):
 
     def test_no_thrust_before_ignition(self):
         force = self.m._pulse(self.state, np.array([1, 0, 0]), np.ones(3), False)
-        self.assertEqual(force.xddot, 0)
+        self.assertEqual(force.fx, 0)
 
     def test_deadline_is_not_completion(self):
         self.m._accept_plan(self.fake_plan())

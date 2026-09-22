@@ -33,7 +33,7 @@ def main():
             if k % scene.dt_between_gnc_updates == 0:
                 u = scene.update_gnc(X, t)
             t += scene.dt
-            X.update(scene.dt, scene.spacecraft.mass, scene.forces(X))
+            scene.step(X)
 
             if plot:
                 Xhist.append(copy(X))

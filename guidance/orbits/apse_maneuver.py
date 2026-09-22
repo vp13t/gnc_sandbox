@@ -42,9 +42,12 @@ class SetApseDistManeuver(Maneuver):
         va = np.linalg.norm(va_vec)
         self.DeltaV_hat = va_vec / va
 
-        if (self.targest_apse == Apse.APOAPSIS and self.r_target < ra):
+        # OE -> Cartesian -> OE roundoff must not reject a circularization
+        # target at the opposite apse (as in the LUN_return scenario).
+        same_radius = np.isclose(self.r_target, ra, rtol=1e-12, atol=1e-6)
+        if (self.targest_apse == Apse.APOAPSIS and self.r_target < ra and not same_radius):
             raise ValueError(f"Cannot set apoapsis radius {self.r_target:.2f}m below periapsis radius {ra:.2f}m.")
-        elif (self.targest_apse == Apse.PERIAPSIS and self.r_target > ra):
+        elif (self.targest_apse == Apse.PERIAPSIS and self.r_target > ra and not same_radius):
             raise ValueError(f"Cannot set periapsis radius {self.r_target:.2f}m above apoapsis radius {ra:.2f}m.")
 
         a1 = initial_oe.a
