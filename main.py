@@ -1,5 +1,5 @@
 import numpy as np 
-from scenarios.ascent.LAUNCH_stage1 import scene
+from scenarios.descent.LAND_powered import scene
 import visualization.animation as animation
 from visualization.plotter import plot_trajectory
 from copy import copy

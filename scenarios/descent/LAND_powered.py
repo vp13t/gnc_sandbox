@@ -15,7 +15,7 @@ from guidance.descent.land_maneuver import LandManeuver
 
 class Scenario(BaseScenario):
     def __init__(self):
-        self.name = "LAND_desc"
+        self.name = "LAND_powered"
 
         alt = 400000.0  # Altitude above Earth's surface in meters
         r_p = Earth.radius + alt  # Perigee distance from Earth's center
@@ -67,7 +67,6 @@ class Scenario(BaseScenario):
         self.guidance_schedule = GuidanceSchedule(
             [
                 InPlaneDescentManeuver(theta_target, 200000, Earth, self.spacecraft, fixed_initial_oe=OE),
-                # IdlePeriod(60),
                 BrakeManeuver(rhat_theta_tgt, 20000, Earth, self.spacecraft, 1200,
                               landing_maneuver=landing, preview_lead=600,
                               max_slew_time=600),
@@ -79,7 +78,7 @@ class Scenario(BaseScenario):
         )
         self.control_force = forces.Force()
 
-        self.duration = self.period * 2
+        self.duration = self.period
         self.dt = 0.1
 
     def update_gnc(self, X, t) -> dict[str, forces.Force]:
