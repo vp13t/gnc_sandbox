@@ -4,19 +4,23 @@ from sim.state import State
 from sim.forces import Force
 
 class GuidanceSchedule:
-    def __init__(self, maneuvers: list[Maneuver], X0: State, t0: float, log=True):
+    def __init__(self, maneuvers: list[Maneuver], X0: State, t0: float, log=True, control_dt=1.0):
         self.maneuvers = maneuvers
         self.curr_maneuver = self.maneuvers.pop(0)
         self.curr_maneuver.plan(X0, t0)
         self.log = log
+        self.control_dt = control_dt
     
     def update(self, state: State, t: float) -> dict[str, Force]:
         action = {}
+        if self.curr_maneuver:
+            self.curr_maneuver.control_dt = self.control_dt
         if self.curr_maneuver and self.curr_maneuver.check_complete(state, t):
             if self.log:
                 print(f"\nCompleted {self.curr_maneuver.name}")
             if self.maneuvers:
                 self.curr_maneuver = self.maneuvers.pop(0)
+                self.curr_maneuver.control_dt = self.control_dt
                 self.curr_maneuver.plan(state, t)
             else:
                 self.curr_maneuver = None

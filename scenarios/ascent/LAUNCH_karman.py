@@ -44,11 +44,13 @@ class Scenario(BaseScenario):
             [IdlePeriod(30),
             RiseManeuver(karman_alt, Earth, self.spacecraft)],
             self.X0,
-            t0
+            t0,
+            control_dt=self.dt * self.dt_between_gnc_updates,
         )
         self.control_force = forces.Force()
 
         self.duration = 700.0
+        self.dt = 0.1
 
     def update_gnc(self, X, t) -> dict[str, forces.Force]:
         control_inputs = self.guidance_schedule.update(X, t)

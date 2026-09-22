@@ -19,7 +19,11 @@ class SoundingRocket(Spacecraft):
         }
         self.thrusters = {
             "X_body": Thruster(
-                12000.0, # N
+                14000.0, # N; thrust/weight ~1.43 at Earth gravity. Sized for
+                         # LandManeuver's near-hover terminal descent margin
+                         # (see guidance/descent/README.md); ascent's gravity
+                         # turn compensates for this by coasting to apoapsis
+                         # before circularizing (see GravityTurnManeuver).
                 IX
             )
         }

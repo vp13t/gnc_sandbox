@@ -11,6 +11,9 @@ class BaseScenario(ABC):
     spacecraft: Spacecraft
     duration: float
     t0 = 0.0
+    dt = 0.1
+    dt_between_gnc_updates = 1
+    dt_between_frames = 10
 
     @abstractmethod
     def forces(self, X):

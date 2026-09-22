@@ -60,7 +60,8 @@ class Scenario(BaseScenario):
                 SetArgumentOfPeriapsisManeuver(omega_new, Earth, self.spacecraft),
             ],
             self.X0,
-            t0
+            t0,
+            control_dt=self.dt * self.dt_between_gnc_updates,
         )
         self.control_force = forces.Force()
 

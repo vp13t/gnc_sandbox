@@ -14,10 +14,18 @@ from enum import Enum
 from guidance.orbits.apse_maneuver import Apse
 
 class InPlaneDescentManeuver(Maneuver):
-    def __init__(self, theta_target: float, body: CelestialBody, spacecraft: Spacecraft, fixed_initial_oe = None):
+    def __init__(
+        self,
+        theta_target: float,
+        alt_target: float,
+        body: CelestialBody,
+        spacecraft: Spacecraft,
+        fixed_initial_oe = None
+    ):
         self.name = "InPlaneDescentManeuver"
         self.burn_apse = Apse.PERIAPSIS if wrap_pi(theta_target) > 0 else Apse.APOAPSIS
         self.theta_target = theta_target
+        self.alt_target = alt_target
         self.body = body
         self.spacecraft = spacecraft
         self.thruster = self.spacecraft.thrusters["X_body"]
@@ -35,9 +43,9 @@ class InPlaneDescentManeuver(Maneuver):
             initial_oe = OE.rv_to_oe(state.pos(), state.vel(), mu)
         r_theta_tgt_curr_orbit, _ = OE.projected_rv_at_anomaly(initial_oe, self.body.mu, self.theta_target)
         rhat_theta_tgt_curr_orbit = r_theta_tgt_curr_orbit / np.linalg.norm(r_theta_tgt_curr_orbit)
-        self.target = self.body.pos_I + rhat_theta_tgt_curr_orbit * self.body.radius
+        r_t = self.body.radius + self.alt_target
+        self.target = self.body.pos_I + rhat_theta_tgt_curr_orbit * r_t
 
-        r_t = self.body.radius
         ra_vec, va_vec = OE.projected_rv_at_anomaly(initial_oe, mu, self.burn_apse.value)
         ra = np.linalg.norm(ra_vec)
         va = np.linalg.norm(va_vec)

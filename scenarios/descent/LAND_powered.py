@@ -10,10 +10,12 @@ import sim.forces as forces
 from guidance.scheduling import GuidanceSchedule
 from guidance.maneuver import IdlePeriod
 from guidance.descent.in_plane_descent_maneuver import InPlaneDescentManeuver
+from guidance.descent.brake_maneuver import BrakeManeuver
+from guidance.descent.land_maneuver import LandManeuver
 
 class Scenario(BaseScenario):
     def __init__(self):
-        self.name = "LAND_ballistic"
+        self.name = "LAND_desc"
 
         alt = 400000.0  # Altitude above Earth's surface in meters
         r_p = Earth.radius + alt  # Perigee distance from Earth's center
@@ -44,21 +46,32 @@ class Scenario(BaseScenario):
         )
         self.last_X = self.X0
 
-        self.cam_target = CameraMode.VELOCITY_FOLLOWING
+        self.cam_target = CameraMode.NORMAL_FACING
         self.spacecraft = SoundingRocket()
 
         t0 = 0.0
         theta_target = np.pi/2
-        glide_slope_angle = np.pi/4
+        glide_slope_angle = 0.9*(np.pi/2)
         landing_duration = self.period/2
 
         r_theta_tgt_curr_orbit, _ = oe.projected_rv_at_anomaly(OE, Earth.mu, theta_target)
         rhat_theta_tgt = r_theta_tgt_curr_orbit / np.linalg.norm(r_theta_tgt_curr_orbit)
 
+        # Reserve thrust for attitude/pulse tracking errors during final braking.
+        # A nominal full-throttle descent has no authority to correct even a
+        # small downward velocity error; later replans can then be infeasible.
+        # Execution may still use 100% thrust to track this 90% nominal plan.
+        landing = LandManeuver(rhat_theta_tgt, glide_slope_angle, Earth, self.spacecraft, 150,
+                                planning_throttle_limit=0.9,
+                                position_tracking_limit=20.0, velocity_tracking_limit=2.0)
         self.guidance_schedule = GuidanceSchedule(
             [
-                InPlaneDescentManeuver(theta_target, 0, Earth, self.spacecraft, fixed_initial_oe=OE),
-                IdlePeriod(60),
+                InPlaneDescentManeuver(theta_target, 200000, Earth, self.spacecraft, fixed_initial_oe=OE),
+                # IdlePeriod(60),
+                BrakeManeuver(rhat_theta_tgt, 20000, Earth, self.spacecraft, 1200,
+                              landing_maneuver=landing, preview_lead=600,
+                              max_slew_time=600),
+                landing,
             ],
             self.X0,
             t0,
@@ -67,7 +80,7 @@ class Scenario(BaseScenario):
         self.control_force = forces.Force()
 
         self.duration = self.period * 2
-        self.dt = 1.0
+        self.dt = 0.1
 
     def update_gnc(self, X, t) -> dict[str, forces.Force]:
         control_inputs = self.guidance_schedule.update(X, t)

@@ -55,22 +55,36 @@ class Scenario(BaseScenario):
         self.cam_target = CameraMode.NORMAL_FACING
         self.spacecraft = SoundingRocket()
 
+        r_p = Earth.radius + 300000.0  # Perigee distance from Earth's center
+        LEO_circ = oe.OrbitalElements(
+            a=r_p,      # Semi-major axis
+            e=0.0,      # Eccentricity
+            i=0.0,      # Inclination
+            Omega=0.0,  # Right ascension of ascending node
+            omega=0.0,  # Argument of periapsis
+            theta=np.pi/2   # True anomaly
+        )
+        _, LEO_circ_V = oe.oe_to_rv(LEO_circ, Earth.mu)
+        LEO_circ_Vmag = np.linalg.norm(LEO_circ_V)
+
         t0 = 0.0
         alt = 40000
         self.guidance_schedule = GuidanceSchedule(
             [
                 IdlePeriod(60),
                 RiseManeuver(alt, Earth, self.spacecraft),
-                PitchManeuver(desired_oe(), Earth, self.spacecraft, np.deg2rad(5), np.deg2rad(2)),
-                GravityTurnManeuver(900, Earth, self.spacecraft),
+                PitchManeuver(desired_oe(), Earth, self.spacecraft, np.deg2rad(10), np.deg2rad(2)),
+                GravityTurnManeuver(LEO_circ_Vmag, Earth, self.spacecraft, ignition_angle=np.pi*2/12),
                 IdlePeriod(60)
             ],
             self.X0,
-            t0
+            t0,
+            control_dt=self.dt * self.dt_between_gnc_updates,
         )
         self.control_force = forces.Force()
 
-        self.duration = 12000.0
+        self.duration = 9000.0
+        self.dt = 1.0
 
     def update_gnc(self, X, t) -> dict[str, forces.Force]:
         control_inputs = self.guidance_schedule.update(X, t)

@@ -1,5 +1,5 @@
 import numpy as np 
-from scenarios.descent.LAND_ballistic import scene
+from scenarios.ascent.LAUNCH_stage1 import scene
 import visualization.animation as animation
 from visualization.plotter import plot_trajectory
 from copy import copy
@@ -11,10 +11,7 @@ import datetime
 animate = False
 plot = True
 
-dt = 1.0  # Time step in seconds
-dt_between_gnc_updates = 1
-dt_between_frames = 10
-steps = math.ceil(scene.duration / dt)
+steps = math.ceil(scene.duration / scene.dt)
 
 def main():
     print(f"Simulating {scene.name} for {datetime.timedelta(seconds=scene.duration)}")
@@ -33,14 +30,14 @@ def main():
             animation.save_frame(animation_plotter, X, scene.cam_target, u=u)
 
         for k in trange(0, steps):
-            if k % dt_between_gnc_updates == 0:
+            if k % scene.dt_between_gnc_updates == 0:
                 u = scene.update_gnc(X, t)
-            t += dt
-            X.update(dt, scene.spacecraft.mass, scene.forces(X))
+            t += scene.dt
+            X.update(scene.dt, scene.spacecraft.mass, scene.forces(X))
 
             if plot:
                 Xhist.append(copy(X))
-            if animate and k % dt_between_frames == 0:
+            if animate and k % scene.dt_between_frames == 0:
                 animation.save_frame(animation_plotter, X, scene.cam_target, u=u)
     finally:
         if animate:

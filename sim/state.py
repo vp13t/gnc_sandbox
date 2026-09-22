@@ -82,7 +82,7 @@ class State:
         if force.normal_force_active:
             V = np.linalg.norm(ic[3:6])
             if V >= 10.0:
-                print(f"\nCrashed at {V:.2f} m/s!")
+                raise Exception(f"\nCrashed at {V:.2f} m/s!")
             ic[3:6] = np.zeros(3)
         sol = solve_ivp(
             fun=dynamics, 

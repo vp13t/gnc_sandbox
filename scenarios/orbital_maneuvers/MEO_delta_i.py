@@ -66,7 +66,8 @@ class Scenario(BaseScenario):
                 SetInclinationManeuver(i_i + 2*np.pi/48, Earth, self.spacecraft)
             ],
             self.X0,
-            t0
+            t0,
+            control_dt=self.dt * self.dt_between_gnc_updates,
         )
         self.control_force = forces.Force()
 
