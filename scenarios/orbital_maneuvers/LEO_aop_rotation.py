@@ -66,6 +66,7 @@ class Scenario(BaseScenario):
         self.control_force = forces.Force()
 
         self.duration = self.period * 4
+        self.dt = 1.0
 
     def update_gnc(self, X, t) -> dict[str, forces.Force]:
         control_inputs = self.guidance_schedule.update(X, t)

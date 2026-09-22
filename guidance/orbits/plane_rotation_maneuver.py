@@ -34,10 +34,10 @@ class PlaneRotationManeuver(Maneuver):
         h_vec = initial_oe.h(self.body.mu)
 
         n = np.cross(ra_vec, va_vec)
-        t = np.cross(h_vec, ra_vec)
+        th = np.cross(h_vec, ra_vec)
         DCM_ItoApoRTN = np.column_stack((
             ra_vec / np.linalg.norm(ra),
-            t / np.linalg.norm(t),
+            th / np.linalg.norm(th),
             n / np.linalg.norm(n)
         ))
         DCM_R = np.array([

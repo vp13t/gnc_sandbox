@@ -1,7 +1,26 @@
-# GNC Sandbox
-A simulation environment for testing GNC and orbital dynamics concepts.
+## Celestial-body rotation
 
-To start, edit `main.py` to import the `scene` object from the desired Scenario to run. Then run using `uv run main.py`.
+`CelestialBody.omega_I` is a constant axial angular-velocity vector in rad/s.
+Its direction is the positive rotation axis; its magnitude is the spin rate.
+Custom bodies can pass `omega_I=[wx, wy, wz]`; omitted values default to zero.
+
+The built-in vectors use the mean pole constants and linear rotation rates in
+[NASA/JPL's planetary constants kernel](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc):
+
+| Body | Approximate rotation period | Mean pole RA / declination |
+| --- | --- | --- |
+| Earth | 23.9345 hours | +Z |
+| Sun | 25.38 days | 286.13° / 63.87° |
+| Moon | 27.3217 days | 269.9949° / 66.5392° |
+
+For these vectors, inertial axes are interpreted as J2000 equatorial axes:
++Z is Earth's mean north pole and +X points toward the mean vernal equinox.
+This is a constant mean-spin approximation, omitting pole precession,
+nutation, lunar libration, and differential solar rotation. Existing body
+positions remain simplified scene placements rather than an ephemeris.
+The ground-track visualization uses these vectors to express surface points
+in a rotating body-fixed frame. They do not yet rotate landing targets or
+change surface-contact dynamics.
 
 ## Scenario dynamics
 
@@ -73,5 +92,3 @@ Run accuracy, scenario, and landing regressions with:
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
 ```
-
-![CubeSat Thrusting](docs/thrust.png)

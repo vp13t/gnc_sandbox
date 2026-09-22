@@ -72,6 +72,7 @@ class Scenario(BaseScenario):
         self.control_force = forces.Force()
 
         self.duration = self.period * 4
+        self.dt = 1.0
 
     def __del__(self):
         last_oe = oe.rv_to_oe(self.last_X.pos(), self.last_X.vel(), Earth.mu)

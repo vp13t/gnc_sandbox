@@ -8,6 +8,7 @@ from sim.frames import IX, IY, IZ, QuaternionFrame
 from sim.forces import Force
 from sim.state import State
 from visualization.camera_mode import CameraMode
+from visualization.style import BODY_AXIS_COLORS
 
 _plumes = WeakKeyDictionary()
 
@@ -115,19 +116,19 @@ def init(filename, framerate=60, *, off_screen=True):
         plotter.add_mesh(
             pv.Arrow(start=(0.55, 0, 0), direction=(1, 0, 0), scale=1.0),
             name="spacecraft_Xface",
-            color="red",
+            color=BODY_AXIS_COLORS["X"],
             reset_camera=False
         )
         plotter.add_mesh(
             pv.Arrow(start=(0, 0.55, 0), direction=(0, 1, 0), scale=1.0),
             name="spacecraft_Yface",
-            color="blue",
+            color=BODY_AXIS_COLORS["Y"],
             reset_camera=False
         )
         plotter.add_mesh(
             pv.Arrow(start=(0, 0, 0.55), direction=(0, 0, 1), scale=1.0),
             name="spacecraft_Zface",
-            color="green",
+            color=BODY_AXIS_COLORS["Z"],
             reset_camera=False
         )
         _plumes[plotter] = _ThrusterPlume(plotter, framerate)
