@@ -1,6 +1,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt
-from scenarios.orbital_maneuvers.LEO_aop_rotation import scene
+from scenarios.orbital_elements.LEO_circ_i15 import scene
 import visualization.animation as animation
 from visualization.plotter import plot_attitude, plot_ground_track, plot_trajectory
 from copy import copy
@@ -11,8 +11,8 @@ import datetime
 
 animate = False
 plot_pos = False
-plot_att = True
-plot_ground = False
+plot_att = False
+plot_ground = True
 ground_body = Earth
 
 steps = math.ceil(scene.duration / scene.dt)

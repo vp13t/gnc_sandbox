@@ -9,19 +9,14 @@ import sim.forces as forces
 
 class Scenario(BaseScenario):
     def __init__(self):
-        self.name = "LEO_i45"
+        self.name = "LEO_circ_i15"
 
-        min_alt = 400000.0  # Altitude above Earth's surface in meters
-        max_alt = 10000000.0  # Altitude above Earth's surface in meters
-        r_p = Earth.radius + min_alt  # Perigee distance from Earth's center
-        r_a = Earth.radius + max_alt  # Apogee distance from Earth's center
-        a = (r_p+r_a)/2
-        e = (r_a-r_p)/(r_a+r_p)
-
+        alt = 600000.0  # Altitude above Earth's surface in meters
+        r = Earth.radius + alt  # Distance from Earth's center
         OE = oe.OrbitalElements(
-            a=a,         # Semi-major axis
-            e=e, # Eccentricity
-            i=np.pi/4,      # Inclination
+            a=r,         # Semi-major axis
+            e=0, # Eccentricity
+            i=np.deg2rad(15),      # Inclination
             Omega=0,  # Right ascension of ascending node
             omega=-np.pi/2,  # Argument of periapsis
             theta=0   # True anomaly
@@ -48,7 +43,8 @@ class Scenario(BaseScenario):
         self.cam_target = CameraMode.VELOCITY_FOLLOWING
         self.spacecraft = CubeSat()
 
-        self.duration = self.period
+        self.duration = 24 * 60 * 60
+        self.dt = 1.0
 
     def forces(self, X):
         return (
