@@ -27,12 +27,12 @@ class Scenario(BaseScenario):
             omega=-np.pi/4,  # Argument of periapsis
             theta=-np.pi/2   # True anomaly
         )
-        r0, v0 = oe.oe_to_rv(OE, mu=Earth.mu)
+        r0, v0 = oe.oe_to_rv(OE)
 
         h = np.cross(r0, v0)
         hhat = h / np.linalg.norm(h)
 
-        self.period = OE.period(mu=Earth.mu)  # Orbital period in seconds
+        self.period = OE.period()  # Orbital period in seconds
         spin = 2 * np.pi / self.period  # Angular velocity in rad/s
 
         q0 = [0, 0, 0, 1]  # Initial quaternion (no rotation)
@@ -54,7 +54,7 @@ class Scenario(BaseScenario):
         glide_slope_angle = 0.9*(np.pi/2)
         landing_duration = self.period/2
 
-        r_theta_tgt_curr_orbit, _ = oe.projected_rv_at_anomaly(OE, Earth.mu, theta_target)
+        r_theta_tgt_curr_orbit, _ = oe.projected_rv_at_anomaly(OE, theta_target)
         rhat_theta_tgt = r_theta_tgt_curr_orbit / np.linalg.norm(r_theta_tgt_curr_orbit)
 
         # Reserve thrust for attitude/pulse tracking errors during final braking.

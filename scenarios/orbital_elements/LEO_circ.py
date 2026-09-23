@@ -21,12 +21,12 @@ class Scenario(BaseScenario):
             omega=0.0,  # Argument of periapsis
             theta=np.pi/2   # True anomaly
         )
-        r0, v0 = oe.oe_to_rv(OE, mu=Earth.mu)
+        r0, v0 = oe.oe_to_rv(OE)
 
         h = np.cross(r0, v0)
         hhat = h / np.linalg.norm(h)
 
-        self.period = OE.period(mu=Earth.mu)  # Orbital period in seconds
+        self.period = OE.period()  # Orbital period in seconds
         spin = 2 * np.pi / self.period  # Angular velocity in rad/s
 
         q0 = [0, 0, 0, 1]  # Initial quaternion (no rotation)

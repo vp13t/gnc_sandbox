@@ -8,7 +8,6 @@ from sim.angles import quat2vec, rotate_vec_towards_vec
 from sim.forces import Force, thrust, control_torque
 from sim.angles import wrap_pi, wrap_2pi
 from spacecraft.spacecraft import Spacecraft
-from guidance.kepler import tpp_eccentric_anomaly
 from controllers.pointing_lyapunov import pointing_lyapunov
 from enum import Enum
 
@@ -34,7 +33,7 @@ class PitchManeuver(Maneuver):
         self.burn_ended = False
 
     def plan(self, state: State, t: float):
-        self.h = self.des_oe.h(self.body.mu)
+        self.h = self.des_oe.h()
         self.rhat0 = state.pos()/np.linalg.norm(state.pos())
     
     def act(self, state: State, t: float):

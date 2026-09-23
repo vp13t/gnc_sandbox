@@ -7,7 +7,6 @@ from guidance.maneuver import Maneuver
 from sim.forces import Force, thrust, control_torque
 from sim.angles import wrap_pi, wrap_2pi
 from spacecraft.spacecraft import Spacecraft
-from guidance.kepler import tpp_eccentric_anomaly
 from controllers.pointing_lyapunov import pointing_lyapunov
 from enum import Enum
 

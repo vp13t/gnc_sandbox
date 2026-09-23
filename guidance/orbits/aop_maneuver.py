@@ -29,11 +29,11 @@ class SetArgumentOfPeriapsisManeuver(Maneuver):
 
     def plan(self, state: State, t: float):
         mu = self.body.mu
-        initial_oe = OE.rv_to_oe(state.pos(), state.vel(), mu)
+        initial_oe = OE.rv_to_oe(state.pos(), state.vel(), body=self.body)
         if initial_oe.e < 1e-6:
             raise ValueError("Periapsis undefined for circular orbits. Cannot rotate argument of periapsis.")
 
-        ra_vec, va_vec = OE.projected_rv_at_anomaly(initial_oe, mu, Apse.APOAPSIS.value)
+        ra_vec, va_vec = OE.projected_rv_at_anomaly(initial_oe, Apse.APOAPSIS.value)
         ra = np.linalg.norm(ra_vec)
         va = np.linalg.norm(va_vec)
         self.DeltaV_hat = va_vec / va
@@ -54,17 +54,17 @@ class SetArgumentOfPeriapsisManeuver(Maneuver):
         
         new_oe = copy(initial_oe)
         new_oe.omega = self.omega_target
-        ra2_vec, va2_vec = OE.projected_rv_at_anomaly(new_oe, mu, Apse.APOAPSIS.value)
+        ra2_vec, va2_vec = OE.projected_rv_at_anomaly(new_oe, Apse.APOAPSIS.value)
         self.DeltaV_hat2 = -va2_vec/(np.linalg.norm(va2_vec))
 
         burn_pt_E = Apse.APOAPSIS.value
         burn_pt_M = burn_pt_E - initial_oe.e * np.sin(burn_pt_E)
-        self.period = initial_oe.period(mu)
+        self.period = initial_oe.period()
         burn_pt_tpp = self.period * burn_pt_M / (2*np.pi)
     
         start_tpp = burn_pt_tpp - self.burn_duration/2
         start_E = tpp_eccentric_anomaly(start_tpp, initial_oe.a, initial_oe.e, mu)
-        self.burn_time = OE.time_until_eccentric_anomaly(initial_oe, self.body.mu, start_E) + t
+        self.burn_time = OE.time_until_eccentric_anomaly(initial_oe, start_E) + t
 
         sec_per_rad = np.sqrt(ra**3/self.body.mu)
         self.transfer_period = sec_per_rad * 2*np.pi

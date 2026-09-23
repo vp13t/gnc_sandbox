@@ -2,15 +2,17 @@ import numpy as np
 from sim.frames import IX, IY, IZ, DCM_oe_BtoI
 from sim.angles import oriented_angle
 from copy import copy
+from sim.bodies import Earth
 
 class OrbitalElements:
-    def __init__(self, a, e, i, Omega, omega, theta):
+    def __init__(self, a, e, i, Omega, omega, theta, body=Earth):
         self.a = a
         self.e = e
         self.i = i
         self.Omega = Omega
         self.omega = omega
         self.theta = theta
+        self.body = body
     
     def vec(self):
         return np.array([self.a, self.e, self.i, self.Omega, self.omega, self.theta])
@@ -18,14 +20,16 @@ class OrbitalElements:
     def __str__(self):
         return f"OrbitalElements(a={self.a}, e={self.e}, i={self.i}, Omega={self.Omega}, omega={self.omega}, theta={self.theta})"
     
-    def period(self, mu):
+    def period(self):
+        mu = self.body.mu
         return 2 * np.pi * np.sqrt(self.a**3 / mu)
     
     def p(self):
         """Semi-latus rectum"""
         return self.a * (1 - self.e**2)
     
-    def h(self, mu):
+    def h(self):
+        mu = self.body.mu
         hmag = np.sqrt(mu * self.p())
         hhat = np.array([
             np.sin(self.i)*np.sin(self.Omega),
@@ -34,7 +38,9 @@ class OrbitalElements:
         ])
         return hmag * hhat
 
-def rv_to_oe(r, v, mu):
+def rv_to_oe(r, v, body=Earth):
+    mu = body.mu
+    r = r - body.pos_I
     h = np.cross(r, v)
 
     rnorm = np.linalg.norm(r)
@@ -77,9 +83,10 @@ def rv_to_oe(r, v, mu):
         omega = 0.0
         theta = oriented_angle(nhat, rhat, hhat)
 
-    return OrbitalElements(a, e, i, Omega, omega, theta)
+    return OrbitalElements(a, e, i, Omega, omega, theta, body=body)
 
-def oe_to_rv(oe: OrbitalElements, mu):
+def oe_to_rv(oe: OrbitalElements):
+    mu = oe.body.mu
     a, e, i, Omega, omega, theta = oe.vec()
 
     specific_energy = -mu / (2 * a)
@@ -97,19 +104,19 @@ def oe_to_rv(oe: OrbitalElements, mu):
     v_B = np.array([vr, vt, 0])
     v_I = dcm @ v_B
 
-    return r_I, v_I
+    return r_I + oe.body.pos_I, v_I
 
-def projected_rv_at_anomaly(oe, mu, theta):
+def projected_rv_at_anomaly(oe, theta):
     projected_oe = copy(oe)
     projected_oe.theta = theta
-    projected_r, projected_v = oe_to_rv(projected_oe, mu)
+    projected_r, projected_v = oe_to_rv(projected_oe)
     return projected_r, projected_v
 
-def projected_rv_periapsis(oe, mu):
-    return projected_rv_at_anomaly(oe, mu, 0)
+def projected_rv_periapsis(oe):
+    return projected_rv_at_anomaly(oe, 0)
 
-def projected_rv_apoapsis(oe, mu):
-    return projected_rv_at_anomaly(oe, mu, np.pi)
+def projected_rv_apoapsis(oe):
+    return projected_rv_at_anomaly(oe, np.pi)
 
 def eccentric_anomaly(oe):
     E = np.arctan2(
@@ -118,8 +125,8 @@ def eccentric_anomaly(oe):
     )
     return E % (2 * np.pi)
 
-def time_until_true_anomaly(oe, mu, target_theta, k_revs=0):
-    T = oe.period(mu)
+def time_until_true_anomaly(oe, target_theta, k_revs=0):
+    T = oe.period()
     E1 = eccentric_anomaly(oe)
     
     oe2 = copy(oe)
@@ -130,8 +137,8 @@ def time_until_true_anomaly(oe, mu, target_theta, k_revs=0):
     rads = (((E2 - oe.e*np.sin(E2)) - (E1 - oe.e*np.sin(E1))) % rev) + (rev * k_revs)
     return T * rads / rev
 
-def time_until_eccentric_anomaly(oe, mu, target_E, k_revs=0):
-    T = oe.period(mu)
+def time_until_eccentric_anomaly(oe, target_E, k_revs=0):
+    T = oe.period()
     E1 = eccentric_anomaly(oe)
 
     E2 = target_E

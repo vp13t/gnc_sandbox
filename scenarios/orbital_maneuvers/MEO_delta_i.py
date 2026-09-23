@@ -33,13 +33,13 @@ class Scenario(BaseScenario):
             omega=self.omega,  # Argument of periapsis
             theta=0   # True anomaly
         )
-        r0, v0 = oe.oe_to_rv(OE, mu=Earth.mu)
+        r0, v0 = oe.oe_to_rv(OE)
 
         h = np.cross(r0, v0)
         hhat = h / np.linalg.norm(h)
 
         # 1 revolution per period
-        self.period = OE.period(mu=Earth.mu)  # Orbital period in seconds
+        self.period = OE.period()  # Orbital period in seconds
         spin = 2 * np.pi / self.period  # Angular velocity in rad/s
 
         q0 = [0, 0, 0, 1]  # Initial quaternion (no rotation)
@@ -75,7 +75,7 @@ class Scenario(BaseScenario):
         self.dt = 1.0
 
     def __del__(self):
-        last_oe = oe.rv_to_oe(self.last_X.pos(), self.last_X.vel(), Earth.mu)
+        last_oe = oe.rv_to_oe(self.last_X.pos(), self.last_X.vel(), body=Earth)
         print(f"Plane Change Targeting Inclination {np.rad2deg(self.i_f):.2f} deg. Final Inclination {np.rad2deg(last_oe.i):.2f} deg")
         print(f"Initial RAAN: {np.rad2deg(self.Omega):.2f} deg. Final RAAN: {np.rad2deg(last_oe.Omega):.2f} deg")
         print(f"Initial AoP: {np.rad2deg(self.omega):.2f} deg. Final AoP: {np.rad2deg(last_oe.omega):.2f} deg")

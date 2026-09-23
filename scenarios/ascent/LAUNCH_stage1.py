@@ -64,7 +64,7 @@ class Scenario(BaseScenario):
             omega=0.0,  # Argument of periapsis
             theta=np.pi/2   # True anomaly
         )
-        _, LEO_circ_V = oe.oe_to_rv(LEO_circ, Earth.mu)
+        _, LEO_circ_V = oe.oe_to_rv(LEO_circ)
         LEO_circ_Vmag = np.linalg.norm(LEO_circ_V)
 
         t0 = 0.0

@@ -24,12 +24,11 @@ class SetInclinationManeuver(Maneuver):
         self.burn_ended = False
 
     def plan(self, state: State, t: float):
-        mu = self.body.mu
-        initial_oe = OE.rv_to_oe(state.pos(), state.vel(), mu)
+        initial_oe = OE.rv_to_oe(state.pos(), state.vel(), body=self.body)
 
         # Check ascending and descending nodes, use whichever has lower velocity.
-        r_an, v_an = OE.projected_rv_at_anomaly(initial_oe, mu, -initial_oe.omega)
-        r_dn, v_dn = OE.projected_rv_at_anomaly(initial_oe, mu, np.pi-initial_oe.omega)
+        r_an, v_an = OE.projected_rv_at_anomaly(initial_oe, -initial_oe.omega)
+        r_dn, v_dn = OE.projected_rv_at_anomaly(initial_oe, np.pi-initial_oe.omega)
         ascending_node = 1
         if np.linalg.norm(v_an) <= np.linalg.norm(v_dn):
             rn_vec = r_an
@@ -49,7 +48,7 @@ class SetInclinationManeuver(Maneuver):
 
         rn = np.linalg.norm(rn_vec)
         rhat = rn_vec / rn
-        h = initial_oe.h(self.body.mu)
+        h = initial_oe.h()
         hhat = h / np.linalg.norm(h)
         that = np.cross(hhat, rhat)
         vt = np.dot(vn_vec, that)
@@ -66,12 +65,12 @@ class SetInclinationManeuver(Maneuver):
         self.burn_duration = self.DeltaV_mag / accel
         
         burn_pt_M = burn_pt_E - initial_oe.e * np.sin(burn_pt_E)
-        self.period = initial_oe.period(mu)
+        self.period = initial_oe.period()
         burn_pt_tpp = self.period * burn_pt_M / (2*np.pi)
     
         start_tpp = burn_pt_tpp - self.burn_duration/2
         start_E = tpp_eccentric_anomaly(start_tpp, initial_oe.a, initial_oe.e, mu)
-        self.burn_time = OE.time_until_eccentric_anomaly(initial_oe, self.body.mu, start_E) + t
+        self.burn_time = OE.time_until_eccentric_anomaly(initial_oe, start_E) + t
     
     def act(self, state: State, t: float):
         L, V = pointing_lyapunov(state, self.DeltaV_hat, self.spacecraft)
