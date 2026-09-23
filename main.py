@@ -50,12 +50,12 @@ def main():
         if animate:
             animation.close(animation_plotter)
         if plot_pos:
-            plot_trajectory(Xhist, f"plots/pos/{scene.name}.png", show=False)
+            plot_trajectory(Xhist, f"plots/position/{scene.name}.png", show=False)
         if plot_att:
-            plot_attitude(Xhist, f"plots/att/{scene.name}.png", show=False)
+            plot_attitude(Xhist, f"plots/attitude/{scene.name}.png", show=False)
         if plot_ground:
             plot_ground_track(Xhist, Thist, ground_body,
-                              f"plots/ground/{scene.name}_{ground_body.name}.png",
+                              f"plots/ground_track/{scene.name}_{ground_body.name}.png",
                               show=False, rotation_epoch=scene.t0)
         if save_history:
             plt.show()
