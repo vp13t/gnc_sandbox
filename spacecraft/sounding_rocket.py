@@ -14,6 +14,7 @@ class SoundingRocket(Spacecraft):
             r**2 * self.mass/4 + h**2 * self.mass/12])  # kg*m^2
         
         self.gains = {
+            # Lyapunov pointing
             "Kr": np.ones(3) * 1.0,
             "Kw": np.ones(3) * 10.0
         }

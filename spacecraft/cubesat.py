@@ -13,6 +13,7 @@ class CubeSat(Spacecraft):
             self.mass * side_length**2 / 6])  # kg*m^2
         
         self.gains = {
+            # Lyapunov pointing
             "Kr": np.ones(3) * 0.1,
             "Kw": np.ones(3) * 10.0
         }

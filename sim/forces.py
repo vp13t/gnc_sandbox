@@ -93,8 +93,14 @@ def normal_force(state: "State", body: CelestialBody, spacecraft: Spacecraft):
 
 def thrust(state: "State", spacecraft: Spacecraft, thruster: Thruster):
     """Sample the thruster's inertial force in newtons."""
-    thrust_dir_I = QuaternionFrame(state) @ thruster.direction
-    return Force.from_vectors(force_I=thruster.force * thrust_dir_I)
+    qf = QuaternionFrame(state)
+    thrust_dir_I = qf @ thruster.direction
+
+    torque_I = np.zeros(3)
+    rot_axis = qf @ _cross3(thruster.position, thruster.direction)
+    if np.linalg.norm(rot_axis) >= 1e-6:
+        torque_I = thruster.force * rot_axis
+    return Force.from_vectors(force_I=thruster.force * thrust_dir_I, torque_I=torque_I)
 
 
 def control_torque(state, L, spacecraft: Spacecraft):
