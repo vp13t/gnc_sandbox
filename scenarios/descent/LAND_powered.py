@@ -4,7 +4,7 @@ import sim.state as state
 from scenarios.base_scenario import BaseScenario
 from sim.bodies import Earth, Sun, Moon
 from spacecraft.sounding_rocket import SoundingRocket
-from visualization.camera_mode import CameraMode
+from visualization.camera_mode import FixedCameraOrientation
 import sim.forces as forces
 
 from guidance.scheduling import GuidanceSchedule
@@ -46,7 +46,6 @@ class Scenario(BaseScenario):
         )
         self.last_X = self.X0
 
-        self.cam_target = CameraMode.NORMAL_FACING
         self.spacecraft = SoundingRocket()
 
         t0 = 0.0
@@ -56,6 +55,10 @@ class Scenario(BaseScenario):
 
         r_theta_tgt_curr_orbit, _ = oe.projected_rv_at_anomaly(OE, theta_target)
         rhat_theta_tgt = r_theta_tgt_curr_orbit / np.linalg.norm(r_theta_tgt_curr_orbit)
+        self.cam_target = FixedCameraOrientation(
+            facing=hhat,
+            up=rhat_theta_tgt,
+        )
 
         # Reserve thrust for attitude/pulse tracking errors during final braking.
         # A nominal full-throttle descent has no authority to correct even a

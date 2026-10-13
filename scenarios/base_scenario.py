@@ -3,12 +3,12 @@ from sim.state import State
 from sim.forces import Force
 from sim.bodies import CelestialBody
 from spacecraft.spacecraft import Spacecraft
-from visualization.camera_mode import CameraMode
+from visualization.camera_mode import CameraMode, FixedCameraOrientation
 
 class BaseScenario(ABC):
     name: str
     X0: State
-    cam_target: CelestialBody | CameraMode
+    cam_target: CelestialBody | CameraMode | FixedCameraOrientation
     spacecraft: Spacecraft
     duration: float
     t0 = 0.0

@@ -7,7 +7,7 @@ from sim.bodies import Bodies, CelestialBody
 from sim.frames import IX, IY, IZ, QuaternionFrame
 from sim.forces import Force
 from sim.state import State
-from visualization.camera_mode import CameraMode
+from visualization.camera_mode import CameraMode, FixedCameraOrientation
 from visualization.style import BODY_AXIS_COLORS
 
 _plumes = WeakKeyDictionary()
@@ -140,11 +140,21 @@ def init(filename, framerate=60, *, off_screen=True):
     return plotter
 
 
-def save_frame(plotter, state: State, cam_target: CelestialBody | CameraMode, u=None):
-    """Look through the spacecraft along the target direction, offset 5 m up."""
+def save_frame(
+    plotter,
+    state: State,
+    cam_target: CelestialBody | CameraMode | FixedCameraOrientation,
+    u=None,
+):
+    """Render a spacecraft-centered frame using the requested camera orientation."""
     position = state.pos().astype(float)
     if isinstance(cam_target, CelestialBody):
         tgt_direction = cam_target.pos_I - position
+        up = np.array([0.0, 0.0, 1.0])
+    elif isinstance(cam_target, FixedCameraOrientation):
+        # Copy because normalization below must not mutate the configuration.
+        tgt_direction = np.array(cam_target.facing, dtype=float, copy=True)
+        up = np.array(cam_target.up, dtype=float, copy=True)
     else:
         match cam_target:
             case CameraMode.VELOCITY_FACING:
@@ -157,11 +167,22 @@ def save_frame(plotter, state: State, cam_target: CelestialBody | CameraMode, u=
                     tgt_direction = IX
             case CameraMode.NORMAL_FACING:
                 tgt_direction = QuaternionFrame(state) @ IY
+            case _:
+                raise ValueError(f"Unsupported camera target: {cam_target!r}")
+        up = np.array([0.0, 0.0, 1.0])
 
     distance = np.linalg.norm(tgt_direction)
     if distance == 0:
         raise ValueError("Cannot aim at the target from its center.")
     tgt_direction /= distance
+
+    # Preserve the supplied roll while ensuring VTK receives an orthogonal
+    # camera-up vector. This handles numerically imperfect input vectors.
+    up = up - np.dot(up, tgt_direction) * tgt_direction
+    up_norm = np.linalg.norm(up)
+    if up_norm == 0:
+        raise ValueError("Camera up direction must not be parallel to facing direction.")
+    up /= up_norm
 
     transform = np.eye(4)
     R = Rotation.from_quat(state.rotvec()).as_matrix()
@@ -176,10 +197,11 @@ def save_frame(plotter, state: State, cam_target: CelestialBody | CameraMode, u=
     for body in Bodies:
         plotter.actors[body.name].position = body.pos_I
 
-    up = np.array([0.0, 0.0, 1.0])
-    if abs(np.dot(up, tgt_direction)) > 0.99:
-        up = np.array([0.0, 1.0, 0.0])
-    camera_position = position - 50.0 * tgt_direction + up
+    camera_position = position - 50.0 * tgt_direction
+    # Preserve the existing slight elevated view for dynamic camera modes. A
+    # fixed orientation instead looks exactly along its configured facing axis.
+    if not isinstance(cam_target, FixedCameraOrientation):
+        camera_position += up
     plotter.camera_position = [camera_position, position, up]
     # Perspective depth precision depends strongly on the near plane. A 0.1 m
     # near plane makes Earth and the Sun round to the same depth, letting the
