@@ -54,23 +54,23 @@ class Scenario(BaseScenario):
         landing_duration = self.period/2
 
         r_theta_tgt_curr_orbit, _ = oe.projected_rv_at_anomaly(OE, theta_target)
-        rhat_theta_tgt = r_theta_tgt_curr_orbit / np.linalg.norm(r_theta_tgt_curr_orbit)
+        self.rhat_theta_tgt = r_theta_tgt_curr_orbit / np.linalg.norm(r_theta_tgt_curr_orbit)
         self.cam_target = FixedCameraOrientation(
             facing=hhat,
-            up=rhat_theta_tgt,
+            up=self.rhat_theta_tgt,
         )
 
         # Reserve thrust for attitude/pulse tracking errors during final braking.
         # A nominal full-throttle descent has no authority to correct even a
         # small downward velocity error; later replans can then be infeasible.
         # Execution may still use 100% thrust to track this 90% nominal plan.
-        landing = LandManeuver(rhat_theta_tgt, glide_slope_angle, Earth, self.spacecraft, 150,
+        landing = LandManeuver(self.rhat_theta_tgt, glide_slope_angle, Earth, self.spacecraft, 150,
                                 planning_throttle_limit=0.9,
                                 position_tracking_limit=20.0, velocity_tracking_limit=2.0)
         self.guidance_schedule = GuidanceSchedule(
             [
                 InPlaneDescentManeuver(theta_target, 200000, Earth, self.spacecraft, fixed_initial_oe=OE),
-                BrakeManeuver(rhat_theta_tgt, 20000, Earth, self.spacecraft, 1200,
+                BrakeManeuver(self.rhat_theta_tgt, 20000, Earth, self.spacecraft, 1200,
                               landing_maneuver=landing, preview_lead=600,
                               max_slew_time=600),
                 landing,
@@ -83,6 +83,11 @@ class Scenario(BaseScenario):
 
         self.duration = self.period
         self.dt = 0.1
+
+    def __del__(self):
+        last_r = self.last_X.pos()
+        des_r = self.rhat_theta_tgt * Earth.radius
+        print(f"Final position error: {np.linalg.norm(last_r - des_r):.3f} m")
 
     def update_gnc(self, X, t) -> dict[str, forces.Force]:
         control_inputs = self.guidance_schedule.update(X, t)
