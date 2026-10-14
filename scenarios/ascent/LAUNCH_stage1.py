@@ -7,7 +7,7 @@ from sim.angles import vec2quat
 from sim.frames import IZ
 from sim.bodies import Earth, Sun, Moon
 from spacecraft.sounding_rocket import SoundingRocket
-from visualization.camera_mode import CameraMode
+from visualization.camera_mode import FixedCameraOrientation
 import sim.forces as forces
 
 from guidance.scheduling import GuidanceSchedule
@@ -52,7 +52,6 @@ class Scenario(BaseScenario):
         )
         self.last_X = self.X0
 
-        self.cam_target = CameraMode.NORMAL_FACING
         self.spacecraft = SoundingRocket()
 
         r_p = Earth.radius + 300000.0  # Perigee distance from Earth's center
@@ -66,6 +65,14 @@ class Scenario(BaseScenario):
         )
         _, LEO_circ_V = oe.oe_to_rv(LEO_circ)
         LEO_circ_Vmag = np.linalg.norm(LEO_circ_V)
+
+        r0hat = r0 / np.linalg.norm(r0)
+        des_h = desired_oe().h()
+        des_hhat = des_h / np.linalg.norm(des_h)
+        self.cam_target = FixedCameraOrientation(
+            facing=des_hhat,
+            up=r0hat,
+        )
 
         t0 = 0.0
         alt = 40000
@@ -84,7 +91,15 @@ class Scenario(BaseScenario):
         self.control_force = forces.Force()
 
         self.duration = 9000.0
-        self.dt = 1.0
+        self.dt = 0.1
+
+    def __del__(self):
+        desh = desired_oe().h()
+        deshhat = desh / np.linalg.norm(desh)
+        h = np.cross(self.last_X.pos(), self.last_X.vel())
+        hhat = h / np.linalg.norm(h)
+        h_err = np.arccos(np.clip(np.dot(deshhat, hhat), -1.0, 1.0))
+        print(f"Angular momentum error: {np.rad2deg(h_err):.3f} deg")
 
     def update_gnc(self, X, t) -> dict[str, forces.Force]:
         control_inputs = self.guidance_schedule.update(X, t)
